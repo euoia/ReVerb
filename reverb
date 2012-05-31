@@ -618,10 +618,6 @@ proc test_verb {chosen_verb chosen_mood chosen_pers} {
     puts ""
 }
 
-# Review words where the last result was incorrect.
-
-
-
 if {[lindex $argv 0] == ""} {
     test
 } else {
@@ -637,6 +633,8 @@ if {[lindex $argv 0] == ""} {
         puts $perspectives
 
     } elseif {[lindex $argv 0] == "examen"} {
+		# Review words where the last result was incorrect.
+
         if {[file exists ~/.verb_results]} {
             set results_fh [open "~/.verb_results" "r"]
             set bytes_read [gets $results_fh line]
