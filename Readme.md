@@ -4,10 +4,10 @@
 
 ## Usage
 
-  reverb              - Tests by randomly picking a verb, perspective and mood
-  reverb cfg          - Shows all verbs, perspectives and moods
-  reverb examen       - Tests verbs that were last answered incorrectly
-  reverb <verb>       - Shows all conjugations for <verb> (given the infinitive)
+    reverb              - Tests by randomly picking a verb, perspective and mood
+    reverb cfg          - Shows all verbs, perspectives and moods
+    reverb examen       - Tests verbs that were last answered incorrectly
+    reverb <verb>       - Shows all conjugations for <verb> (given the infinitive)
 
 ## Dependencies
 
