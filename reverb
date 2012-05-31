@@ -1,0 +1,715 @@
+#!/usr/bin/env tclsh8.5
+# vim: ft=tcl
+package require tdom
+
+####################################
+# Config
+####################################
+set voices {julie felix sebastien thomas virginie}
+set voices {thomas}
+
+# Original list
+set practice_verbs {
+    aller
+    avoir
+    devoir
+    dire
+    dormir
+    être
+    faire
+    lire
+    mettre
+    parler
+    penser
+    pouvoir
+    prendre
+    savoir
+    vouloir
+}
+
+# List 2
+lappend practice_verbs {*}{
+    acheter
+    appeler
+    boire
+    boucher
+    choisir
+    croire
+    couvrir
+    écrire
+    finir
+    jeter
+    manger
+    payer
+    placer
+    rendre
+    rire
+    sentir
+    suivre
+    tenir
+    valoir
+    venir
+    vivre
+    voir
+}
+
+# List 3 (être verbs)
+# Re- versions taken out.
+lappend practice_verbs {*}{
+    aller
+    arriver
+    descendre
+    entrer
+    rentrer
+    monter
+    mourir
+    naître
+    partir
+    passer
+    rester
+    retourner
+    sortir
+    tomber
+    venir
+    devenir
+}
+
+set etre_verbs {
+    aller
+    arriver
+    descendre
+    redescendre
+    entrer
+    rentrer
+    monter
+    remonter
+    mourir
+    naître
+    renaître
+    partir
+    repartir
+    passer
+    rester
+    retourner
+    sortir
+    ressortir
+    tomber
+    retomber
+    venir
+    devenir
+}
+
+# Note that the following verbs can be used with être or avoir:
+# monter, passer, convenir
+
+set practice_moods {
+    indicative/imperfect
+    indicative/present
+    indicative/future
+    conditional/present
+    participle/past-participle
+}
+
+set perspectives {
+    je
+    tu
+    il
+    nous
+    vous
+    ils
+}
+
+set insults {
+    {abruti}
+    {vas te faire enculer}
+    {vas te faire foutre}
+    {andouille}
+    {avorton}
+    {bâtard}
+    {bouffon}
+    {branleur}
+    {cave}
+    {connard}
+    {crétin}
+    {débile}
+    {ducon}
+    {enculé}
+    {enfant de pute}
+    {enfant de salaud}
+    {enfoiré}
+    {étron}
+    {face de pet}
+    {fils de chienne}
+    {fils de garce}
+    {fils de putain}
+    {fils de pute}
+    {fripouille}
+    {gland}
+    {glandeur}
+    {idiot}
+    {imbécile}
+    {incapable}
+    {minable}
+    {minus}
+    {misérable}
+    {moins-que-rien}
+    {moron}
+    {niaiseux}
+    {nul}
+    {plouc}
+    {poltron}
+    {putois}
+    {raté}
+    {roi des cons}
+    {rosbif}
+    {sous-merde}
+    {tête de nœud}
+}
+
+
+####################################
+# Utility
+####################################
+proc colour {colour text} {
+    switch -- $colour {
+        "red" {
+            set code 31
+        }
+        "green" {
+            set code 32
+        }
+        default {
+            error "Unknown colour $colour"
+        }
+    }
+
+    return "\[${code}m${text}\[37m"
+}
+
+proc capitalize {text} {
+    return "[string toupper [string index $text 0]][string range $text 1 end]"
+}
+
+# Search a list of dicts, return index of first matching item.
+proc ldict_search {ldict key_value_pairs} {
+	set ldict_i 0
+	foreach d $ldict {
+		set match 1
+		foreach {key value} $key_value_pairs {
+			if {[dict get $d $key] != $value} {
+				set match 0
+			}
+		}
+
+		if {$match == 1} {
+			return $ldict_i
+		}
+
+		incr ldict_i
+	}
+
+	return -1
+}
+
+
+####################################
+# Application
+####################################
+
+
+set conjugation_filename "[file dirname $argv0]/data/conjugation-fr.xml"
+set verbs_filename "[file dirname $argv0]/data/verbs-fr.xml"
+
+
+set conjugation_file [open $conjugation_filename]
+set conjugation_data [read $conjugation_file]
+
+set c_dom [dom parse $conjugation_data]
+set c_doc [$c_dom documentElement]
+
+set verbs_file [open $verbs_filename]
+set verbs_data [read $verbs_file]
+
+set v_dom [dom parse $verbs_data]
+set v_doc [$v_dom documentElement]
+
+proc translate_mood {mood} {
+    switch -- $mood {
+        "indicative/future" {
+            return "au futur"
+        }
+        "indicative/present" {
+            return "au présent"
+        }
+        "indicative/imperfect" {
+            return "à l'imparfait"
+        }
+        "conditional/present" {
+            return "au conditionnel"
+        }
+        "participle/past-participle" {
+            return "au passé composé"
+        }
+        default {
+            puts "Warning: No translation for mood $mood"
+        }
+    }
+
+    return $mood
+}
+
+proc random_insult {} {
+    global insults
+
+    return [lindex $insults [expr {int(rand() * [llength $insults])}]]
+}
+
+proc random_voice {} {
+    global voices 
+    return [lindex $voices [expr {int(rand() * [llength $voices])}]]
+}
+
+proc get_past_participle_prefix {verb perspective} {
+    global etre_verbs
+
+    if {[lsearch $etre_verbs $verb] >= 0} {
+        # Is an être verb
+        switch -- $perspective {
+            "je" {
+                return "je suis"
+            }
+            "tu" {
+                return "tu es"
+            }
+            "il" {
+                return "il est"
+            }
+            "vous" {
+                return "vous êtes"
+            }
+            "nous" {
+                return "nous sommes"
+            }
+            "ils" {
+                return "ils sont"
+            }
+            default {
+                error "Invalid persepective $perspective"
+            }
+        }
+    } else {
+        # avoir verb
+        switch -- $perspective {
+            "je" {
+                return "j'ai"
+            }
+            "tu" {
+                return "tu as"
+            }
+            "il" {
+                return "il a"
+            }
+            "vous" {
+                return "vous avez"
+            }
+            "nous" {
+                return "nous avons"
+            }
+            "ils" {
+                return "ils ont"
+            }
+            default {
+                error "Invalid persepective $perspective"
+            }
+        }
+    }
+}
+
+proc conjugate_verb_passe_compose {verb perspective} {
+    global etre_verbs
+
+    # Bit of hack a because the file format is weird for
+    # past-participle. Use the first (je) form.
+    set base_response [get_conjugated_verb $verb "participle/past-participle" "je"]
+
+    if {[lsearch $etre_verbs $verb] == -1} {
+        # not an être verb
+        return $base_response
+    }
+
+    # Is an être verb - multiple possibilities
+
+    set responses [list]
+    switch -- $perspective {
+        "je" -
+        "tu" {
+            lappend responses $base_response
+            lappend responses "${base_response}e"
+        }
+        "il" {
+            lappend responses "${base_response}"
+        }
+        "vous" {
+            lappend responses "${base_response}e"
+            lappend responses "${base_response}s"
+            lappend responses "${base_response}es"
+        }
+        "nous" {
+            lappend responses "${base_response}s"
+            lappend responses "${base_response}es"
+        }
+        "ils" {
+            lappend responses "${base_response}s"
+        }
+        default {
+            error "Invalid persepective $perspective"
+        }
+    }
+
+    return $responses
+}
+
+
+proc get_mood_node_str {mood_list verb_root mood_nodes} {
+    set response ""
+
+    append response [format "%6s " ""]
+    foreach mood $mood_list {
+        append response [format "%-17s " [translate_mood $mood]]
+    }
+    append response "\n"
+
+    append response [format "%6s " ""]
+    foreach mood $mood_list {
+        append response [format "%-17s " [string repeat - [string length [translate_mood $mood]]]]
+    }
+    append response "\n"
+
+    set i 0
+    foreach person {je tu il nous vous ils} {
+        append response [format "%6s " $person]
+
+        for {set mood_idx 0} {$mood_idx < [llength $mood_nodes]} {incr mood_idx} {
+            set mood_node [lindex $mood_nodes $mood_idx]
+            set mood_name [lindex $mood_list $mood_idx]
+
+            set perspectives [$mood_node selectNodes p]
+            set perpNode [lindex $perspectives $i]
+
+            # Hack alert! The file format seems to be inconsistent for the
+            # past-participle so we need to ignore all except the first entry.
+            if {$perpNode == "" ||
+                ($mood_name == "participle/past-participle" && $person != "je")
+            } {
+                append response [format "%-17s " "-"]
+            } else {
+                set verbs [list]
+                foreach verbNode [$perpNode selectNodes i] {
+                    set verb "${verb_root}[$verbNode text]"
+                    lappend verbs $verb
+                }
+
+                append response [format "%-17s " [join $verbs "/"]]
+            }
+        }
+
+        append response "\n"
+
+        incr i
+    }
+
+    return $response
+}
+
+proc conjugate {mood_node verb_root perspective} {
+    set perspectives [$mood_node selectNodes p]
+
+    set i 0
+    foreach person {je tu il nous vous ils} {
+        if {$person != $perspective} {
+            incr i
+            continue
+        }
+
+        set verbs [list]
+        set perpNode [lindex $perspectives $i]
+        if {$perpNode != ""} {
+            foreach verbNode [$perpNode selectNodes i] {
+                lappend verbs "${verb_root}[$verbNode text]"
+            }
+        }
+
+        incr i
+        return $verbs
+    }
+}
+
+proc get_mood_node {verb_root template_name mood} {
+    global c_doc
+
+    set nodes [$c_doc selectNodes "/conjugation-fr/template"]
+
+    foreach node $nodes {
+        if {[$node getAttribute name] == $template_name} {
+            set mood_node [$node selectNodes $mood]
+
+            if {$mood_node != ""} {
+                return $mood_node
+            } else {
+                puts "Mood $mood not found."
+            }
+        }
+    }
+
+}
+
+proc get_template {verb} {
+    global v_doc
+
+    set nodes [$v_doc selectNodes /verbs-fr/v]
+    foreach node $nodes {
+        set verbs [$node selectNodes {string (i)}]
+        foreach v $verbs {
+            if {$verb == $v} {
+                return [$node selectNodes {string (t)}]
+
+            }
+        }
+    }
+}
+
+proc get_table {verb {mood_list all} {perspective all}} {
+    global practice_moods
+
+    if {$mood_list == "all"} {
+        set mood_list $practice_moods
+    }
+
+    set template [get_template $verb]
+
+    set response ""
+
+    # Split the template into root and tail
+    if {[regexp {(.*):(.*)} $template all t_root t_tail] == 0} {
+        error "Cannot split $template into two parts on ':'"
+    }
+
+    # Remove the tail from the infinitive form of the supplied word
+    if {[regexp "\(.*\)${t_tail}$" $verb all verb_root verb_tail] == 0} {
+        error "Cannot find an ending '$t_tail' to $verb"
+    }
+
+    if {"$verb_root${t_tail}" != "${t_root}${t_tail}"} {
+        append response "$verb_root${t_tail} est conjugu� comme ${t_root}${t_tail}."
+    }
+    append response "\n\n"
+
+    set mood_nodes [list]
+    foreach mood $mood_list {
+        lappend mood_nodes [get_mood_node $verb_root $template $mood]
+    }
+
+    append response [get_mood_node_str $mood_list $verb_root $mood_nodes]
+
+    return $response
+    #TODO : Test & use perspective
+}
+
+proc get_conjugated_verb {verb mood perspective} {
+    set template [get_template $verb]
+    if {$template == ""} {
+        error "No template found for $verb"
+    }
+
+    # Split the template into root and tail
+    if {[regexp {(.*):(.*)} $template all t_root t_tail] == 0} {
+        error "Cannot split $template into two parts on ':'"
+    }
+
+    # Remove the tail from the infinitive form of the supplied word
+    if {[regexp "\(.*\)${t_tail}$" $verb all verb_root verb_tail] == 0} {
+        error "Cannot find an ending '$t_tail' to $verb"
+    }
+
+    set mood_node [get_mood_node $verb_root $template $mood]
+    return [conjugate $mood_node $verb_root $perspective]
+}
+
+proc write_result {verb mood perspective result} {
+    set r_file [open ~/.verb_results "a"]
+    puts $r_file "[clock seconds] $verb $mood $perspective $result"
+    close $r_file
+}
+
+proc test {} {
+    global practice_verbs
+    global practice_moods
+    global perspectives
+
+    set chosen_verb [lindex $practice_verbs [expr {int(rand() * [llength $practice_verbs])}]]
+    set chosen_mood [lindex $practice_moods [expr {int(rand() * [llength $practice_moods])}]]
+    set chosen_pers [lindex $perspectives [expr {int(rand() * [llength $perspectives])}]]
+
+    while {1} {
+        test_verb $chosen_verb $chosen_mood $chosen_pers
+        set chosen_verb [lindex $practice_verbs [expr {int(rand() * [llength $practice_verbs])}]]
+        set chosen_mood [lindex $practice_moods [expr {int(rand() * [llength $practice_moods])}]]
+        set chosen_pers [lindex $perspectives [expr {int(rand() * [llength $perspectives])}]]
+    }
+}
+
+proc test_verb {chosen_verb chosen_mood chosen_pers} {
+    set voice [random_voice]
+
+    set correct_responses [get_conjugated_verb $chosen_verb $chosen_mood $chosen_pers]
+    if {$correct_responses == ""} {
+        # Cannot conjugate $chosen_verb in $chosen_mood with $chosen_pers"
+        return
+    }
+
+    if {$chosen_mood == "participle/past-participle"} {
+        # Passé Composé - use avoir or être
+
+        set correct_responses [conjugate_verb_passe_compose $chosen_verb $chosen_pers]
+        set prefix "[get_past_participle_prefix $chosen_verb $chosen_pers] "
+    } else {
+        set first_letter [string index $correct_responses 0]
+        if {($first_letter == "a" || $first_letter == "é") && $chosen_pers == "je"} {
+            set prefix "j'"
+        } else {
+            set prefix "$chosen_pers "
+        }
+    }
+
+    set cap_prefix [capitalize $prefix]
+
+    set chosen_mood_fr [translate_mood $chosen_mood]
+
+    set prompt "Conjuguer le verbe «$chosen_verb» $chosen_mood_fr ... $prefix"
+    puts -nonewline $prompt
+    flush stdout
+    exec osascript -e "say \"$prompt\" using \"$voice\""
+
+    gets stdin response
+
+    if {[lsearch $correct_responses $response] >= 0} {
+        write_result $chosen_verb $chosen_mood $chosen_pers CORRECT
+        #set feedback "Très bien! La bonne réponse est: $cap_prefix[join $correct_responses [subst { ou $prefix}]]."
+        set feedback "Très bien! $cap_prefix[join $correct_responses [subst { ou $prefix}]]."
+        puts [colour green $feedback]
+        exec osascript -e "say \"$feedback\" using \"$voice\""
+        after 1000
+    } else {
+        write_result $chosen_verb $chosen_mood $chosen_pers INCORRECT
+        set feedback "[capitalize [random_insult]]! Vous devez répondre: $cap_prefix[join $correct_responses [subst { ou $prefix}]]."
+        puts [colour red $feedback]
+        puts ""
+
+        # Work-around for the fudged participle/past-participle stuff.
+        if {$chosen_mood != "participle/past-participle"} {
+            puts [get_table $chosen_verb]
+        }
+
+        exec osascript -e "say \"$feedback\" using \"$voice\""
+
+        after 3000
+    }
+
+    puts ""
+}
+
+# Review words where the last result was incorrect.
+
+
+
+if {[lindex $argv 0] == ""} {
+    test
+} else {
+    if {[lindex $argv 0] == "cfg"} {
+        puts "---------"
+        puts "verbs:"
+        puts $practice_verbs
+        puts "---------"
+        puts "moods"
+        puts $practice_moods
+        puts "---------"
+        puts "perspectives"
+        puts $perspectives
+
+    } elseif {[lindex $argv 0] == "examen"} {
+        if {[file exists ~/.verb_results]} {
+            set results_fh [open "~/.verb_results" "r"]
+            set bytes_read [gets $results_fh line]
+
+            set results [list]
+            while {$bytes_read > 0} {
+                set re_res [regexp {^(\d+) ([\w]+) ([\w/-]+) ([\w]+) ([\w]+)$} $line \
+                    all \
+                    timestamp \
+                    verb \
+                    mood \
+                    perspective \
+                    correct_or_incorrect]
+
+
+                # Create a list of dictionaries to contain the results.
+                lappend results [subst {
+                    timestamp $timestamp
+                    verb $verb
+                    mood $mood
+                    perspective $perspective
+                    correct_or_incorrect $correct_or_incorrect
+                }]
+
+                if {$re_res == 0} {
+                    puts stderr "Unable to parse line:"
+                    puts $line
+                }
+
+                set bytes_read [gets $results_fh line]
+            }
+
+            # Test results
+            set incorrect_results [list]
+            foreach result $results {
+                set search_result [ldict_search $incorrect_results \
+                    [subst {
+                        verb [dict get $result verb] \
+                        mood [dict get $result mood] \
+                        perspective [dict get $result perspective]}]]
+
+                if {$search_result == -1 && [dict get $result correct_or_incorrect] == "INCORRECT"} {
+                    # Not in list of incorrect words, and this result was incorrect, add it.
+                    lappend incorrect_results $result
+                } elseif {$search_result >= 0  && [dict get $result correct_or_incorrect] == "CORRECT"} {
+                    # Incorrect but later corrected
+                    set incorrect_results [lreplace $incorrect_results $search_result $search_result]
+                }
+            }
+
+            puts "Testing [llength $incorrect_results] incorrect answers."
+            set start_pos 0
+            set pos $start_pos
+            foreach incorrect_result $incorrect_results {
+                puts "$pos / [llength $incorrect_results]"
+
+                test_verb \
+                    [dict get $incorrect_result verb] \
+                    [dict get $incorrect_result mood] \
+                    [dict get $incorrect_result perspective]
+
+                incr pos
+            }
+
+            exit 1
+        }
+    } else {
+        puts [get_table [lindex $argv 0]]
+    }
+}
+
+#foreach verb $practice_verbs {
+#    puts "$verb:"
+#    puts [get_table $verb]
+#    puts ""
+#}
