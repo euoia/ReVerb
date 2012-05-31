@@ -29,6 +29,7 @@
   * Improved interface.
   * Simplified configuration.
   * Full translation of in-application text to French.
+  * Subjuntive and other moods.
 
 ## License
 
