@@ -486,8 +486,9 @@ proc get_table {verb {mood_list all} {perspective all}} {
     }
 
     set template [get_template $verb]
-
-    set response ""
+    if {$template == ""} {
+		return "Verb not found: $verb"
+    }
 
     # Split the template into root and tail
     if {[regexp {(.*):(.*)} $template all t_root t_tail] == 0} {
@@ -520,7 +521,7 @@ proc get_conjugated_verb {verb mood perspective} {
     if {$template == ""} {
         error "No template found for $verb"
     }
-
+	
     # Split the template into root and tail
     if {[regexp {(.*):(.*)} $template all t_root t_tail] == 0} {
         error "Cannot split $template into two parts on ':'"
