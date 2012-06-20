@@ -36,7 +36,7 @@ lappend practice_verbs {*}{
     choisir
     croire
     couvrir
-    √©crire
+    Ècrire
     finir
     jeter
     manger
@@ -74,6 +74,18 @@ lappend practice_verbs {*}{
     devenir
 }
 
+set practice_verbs {
+	avoir
+	savoir
+	pouvoir
+	aller
+	valoir
+	faire
+	vouloir
+	Ítre
+	finir
+}
+
 set etre_verbs {
     aller
     arriver
@@ -102,12 +114,18 @@ set etre_verbs {
 # Note that the following verbs can be used with √™tre or avoir:
 # monter, passer, convenir
 
-set practice_moods {
+set all_moods {
     indicative/imperfect
     indicative/present
     indicative/future
     conditional/present
+	subjunctive/present
     participle/past-participle
+}
+
+set practice_moods {
+    indicative/imperfect
+	subjunctive/present
 }
 
 set perspectives {
@@ -130,14 +148,14 @@ set insults {
     {branleur}
     {cave}
     {connard}
-    {cr√©tin}
-    {d√©bile}
+    {crÈtin}
+    {dÈbile}
     {ducon}
-    {encul√©}
+    {enculÈ}
     {enfant de pute}
     {enfant de salaud}
-    {enfoir√©}
-    {√©tron}
+    {enfoirÈ}
+    {Ètron}
     {face de pet}
     {fils de chienne}
     {fils de garce}
@@ -147,11 +165,11 @@ set insults {
     {gland}
     {glandeur}
     {idiot}
-    {imb√©cile}
+    {imbÈcile}
     {incapable}
     {minable}
     {minus}
-    {mis√©rable}
+    {misÈrable}
     {moins-que-rien}
     {moron}
     {niaiseux}
@@ -159,7 +177,7 @@ set insults {
     {plouc}
     {poltron}
     {putois}
-    {rat√©}
+    {ratÈ}
     {roi des cons}
     {rosbif}
     {sous-merde}
@@ -239,7 +257,7 @@ proc translate_mood {mood} {
             return "au futur"
         }
         "indicative/present" {
-            return "au pr√©sent"
+            return "au indicatif prÈsent"
         }
         "indicative/imperfect" {
             return "√† l'imparfait"
@@ -247,8 +265,11 @@ proc translate_mood {mood} {
         "conditional/present" {
             return "au conditionnel"
         }
+        "subjunctive/present" {
+            return "au subjunctif prÈsent"
+        }
         "participle/past-participle" {
-            return "au pass√© compos√©"
+            return "au passÈ composÈ"
         }
         default {
             puts "Warning: No translation for mood $mood"
@@ -375,13 +396,13 @@ proc get_mood_node_str {mood_list verb_root mood_nodes} {
 
     append response [format "%6s " ""]
     foreach mood $mood_list {
-        append response [format "%-17s " [translate_mood $mood]]
+        append response [format "%-22s " [translate_mood $mood]]
     }
     append response "\n"
 
     append response [format "%6s " ""]
     foreach mood $mood_list {
-        append response [format "%-17s " [string repeat - [string length [translate_mood $mood]]]]
+        append response [format "%-22s " [string repeat - [string length [translate_mood $mood]]]]
     }
     append response "\n"
 
@@ -401,7 +422,7 @@ proc get_mood_node_str {mood_list verb_root mood_nodes} {
             if {$perpNode == "" ||
                 ($mood_name == "participle/past-participle" && $person != "je")
             } {
-                append response [format "%-17s " "-"]
+                append response [format "%-22s " "-"]
             } else {
                 set verbs [list]
                 foreach verbNode [$perpNode selectNodes i] {
@@ -409,7 +430,7 @@ proc get_mood_node_str {mood_list verb_root mood_nodes} {
                     lappend verbs $verb
                 }
 
-                append response [format "%-17s " [join $verbs "/"]]
+                append response [format "%-22s " [join $verbs "/"]]
             }
         }
 
@@ -479,10 +500,10 @@ proc get_template {verb} {
 }
 
 proc get_table {verb {mood_list all} {perspective all}} {
-    global practice_moods
+    global practice_moods all_moods
 
     if {$mood_list == "all"} {
-        set mood_list $practice_moods
+        set mood_list $all_moods
     }
 
     set template [get_template $verb]
@@ -569,16 +590,28 @@ proc test_verb {chosen_verb chosen_mood chosen_pers} {
     }
 
     if {$chosen_mood == "participle/past-participle"} {
-        # Pass√© Compos√© - use avoir or √™tre
+        # PassÈ ComposÈ - use avoir or √™tre
 
         set correct_responses [conjugate_verb_passe_compose $chosen_verb $chosen_pers]
         set prefix "[get_past_participle_prefix $chosen_verb $chosen_pers] "
     } else {
+		if { $chosen_mood == "subjunctive/present" } {
+			set prefix "Il faut qu"
+
+			if {$chosen_pers == "ils" || $chosen_pers == "il" || $chosen_pers == "elle" || $chosen_pers == "elles"} {
+				append prefix "'"
+			} else {
+				append prefix "e "
+			}
+		} else {
+			set prefix ""
+		}
+
         set first_letter [string index $correct_responses 0]
-        if {($first_letter == "a" || $first_letter == "√©") && $chosen_pers == "je"} {
-            set prefix "j'"
+        if {($first_letter == "a" || $first_letter == "È") && $chosen_pers == "je"} {
+            append prefix "j'"
         } else {
-            set prefix "$chosen_pers "
+            append prefix "$chosen_pers "
         }
     }
 
@@ -595,20 +628,20 @@ proc test_verb {chosen_verb chosen_mood chosen_pers} {
 
     if {[lsearch $correct_responses $response] >= 0} {
         write_result $chosen_verb $chosen_mood $chosen_pers CORRECT
-        #set feedback "Tr√®s bien! La bonne r√©ponse est: $cap_prefix[join $correct_responses [subst { ou $prefix}]]."
+        #set feedback "Tr√®s bien! La bonne rÈponse est: $cap_prefix[join $correct_responses [subst { ou $prefix}]]."
         set feedback "Tr√®s bien! $cap_prefix[join $correct_responses [subst { ou $prefix}]]."
         puts [colour green $feedback]
         exec osascript -e "say \"$feedback\" using \"$voice\""
         after 1000
     } else {
         write_result $chosen_verb $chosen_mood $chosen_pers INCORRECT
-        set feedback "[capitalize [random_insult]]! Vous devez r√©pondre: $cap_prefix[join $correct_responses [subst { ou $prefix}]]."
+        set feedback "[capitalize [random_insult]]! Vous devez rÈpondre: $cap_prefix[join $correct_responses [subst { ou $prefix}]]."
         puts [colour red $feedback]
         puts ""
 
         # Work-around for the fudged participle/past-participle stuff.
         if {$chosen_mood != "participle/past-participle"} {
-            puts [get_table $chosen_verb]
+            puts [get_table $chosen_verb all]
         }
 
         exec osascript -e "say \"$feedback\" using \"$voice\""
@@ -703,7 +736,7 @@ if {[lindex $argv 0] == ""} {
             exit 1
         }
     } else {
-        puts [get_table [lindex $argv 0]]
+        puts [get_table [lindex $argv 0] all]
     }
 }
 
